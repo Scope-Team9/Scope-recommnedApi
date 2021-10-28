@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request, redirect, url_for
+from flask import Flask, jsonify, request
 import operator
 import csv
 import pTypeDict
@@ -9,10 +9,10 @@ app = Flask(__name__)
 def hello_world():  # put application's code here
     return 'Hello World!'
 
-@app.route('/api/user/propensity-type',methods=['GET'])
+@app.route('/api/user/propensity-type', methods=['GET'])
 def getPropersityType():  # put application's code here
-    userPropensityType = request.form['userPropensityType']
-    memberPropensityType = request.form['memberPropensityType']
+    userPropensityType = request.args['userPropensityType']
+    memberPropensityType = request.args['memberPropensityType']
 
    #읽기모드로 csv파일 열기
     f = open('scope.csv','r')
@@ -37,50 +37,52 @@ def getPropersityType():  # put application's code here
 
     #내림차순으로 정렬 (추천 많은 순)
     sortDic = dict(sorted(dic.items(), key=operator.itemgetter(1), reverse=True))
+    print(sortDic)
+    recommendedPropensityTypeList = list(sortDic.keys())
 
     #가중치 더한 값 다시 뺴기
     data[pTypeDict.propersityType[userPropensityType]][pTypeDict.propersityType[memberPropensityType]] = int(
         data[pTypeDict.propersityType[userPropensityType]][
             pTypeDict.propersityType[memberPropensityType]]) - weight
 
-    return jsonify({'status': "200", 'msg': "팀원평가 저장 완료", "data":{'userPropensityType': userPropensityType, 'recommendedPropensityType': sortDic}})
+    return jsonify({'status': "200", 'msg': "팀원평가 저장 완료", "data":{'userPropensityType': userPropensityType, 'recommendedPropensityType': recommendedPropensityTypeList}})
 
 
-@app.route('/api/rating',method=['POST'])
+@app.route('/api/rating', methods=['POST'])
 def saveMemberRating():
-    #평가자
-    rater = request.form['rater']
-    #피평가자 리스트
-    userList = request.form['userList']
+    # 평가자
+    rater = request.json['rater']
 
-    #csv파일 읽기 모드로 열기
+    # 피평가자 리스트
+    userList = request.json['userList']
+
+    # csv파일 읽기 모드로 열기
     f = open('scope.csv','r')
     csvR = csv.reader(f)
 
-    #리스트로 저장
+    # 리스트로 저장
     data = list(csvR)
 
     # csv 파일 닫기
     f.close()
 
     # csv파일 쓰기 모드로 열기
-    f = open('scope.csv', 'w',newline="")
+    f = open('scope.csv', 'w', newline="")
     csvW = csv.writer(f)
 
-    #유저 평가 정보를 data에 저장
+    # 유저 평가 정보를 data에 저장
     for i in userList:
         data[pTypeDict.propersityType[rater]][
             pTypeDict.propersityType[i]] = int(
             data[pTypeDict.propersityType[rater]][
                 pTypeDict.propersityType[i]]) + 1
-    #바뀐 data를 csv 파일에 저장
+    # 바뀐 data를 csv 파일에 저장
     csvW.writerows(data)
 
-    #csv 파일 닫기
+    # csv 파일 닫기
     f.close()
+
     return jsonify({'status': "200", 'msg': "팀원평가 저장 완료"})
-
-
 
 if __name__ == '__main__':
     app.run()
